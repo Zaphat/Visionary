@@ -32,7 +32,13 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      [
+        "expo-font",
+      {
+        "fonts": ["./assets/fonts/Iceland-Regular.ttf"]
+      }
+    ]
     ],
     "experiments": {
       "typedRoutes": true
