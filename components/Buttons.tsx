@@ -3,9 +3,16 @@ import React from "react";
 import { Colors } from "../constants/Colors";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { router } from "expo-router";
+
 export function GalleryButton() {
   return (
-    <TouchableOpacity style={styles.content}>
+    <TouchableOpacity
+      style={styles.content}
+      onPress={() => {
+        router.push("/gallery");
+      }}
+    >
       <AntDesign name="picture" size={32} color="black" />
     </TouchableOpacity>
   );
@@ -13,7 +20,12 @@ export function GalleryButton() {
 
 export function CameraButton() {
   return (
-    <TouchableOpacity style={styles.content}>
+    <TouchableOpacity
+      style={styles.content}
+      onPress={() => {
+        router.push("/camera");
+      }}
+    >
       <AntDesign name="scan1" size={32} color="black" />
     </TouchableOpacity>
   );
@@ -21,7 +33,12 @@ export function CameraButton() {
 
 export function CreateQRButton() {
   return (
-    <TouchableOpacity style={styles.content}>
+    <TouchableOpacity
+      style={styles.content}
+      onPress={() => {
+        router.push("/new-qr");
+      }}
+    >
       <MaterialCommunityIcons name="qrcode-plus" size={32} color="black" />
     </TouchableOpacity>
   );
