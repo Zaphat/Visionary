@@ -1,22 +1,15 @@
 import React from "react";
-import { StyleSheet, View, Text } from "react-native";
+import { useWindowDimensions } from "react-native";
+import RenderHtml from "@builder.io/react-native-render-html";
 
-export default function Browser() {
-  return (
-    <>
-      <View style={styles.container}>
-        <Text> In-app Browser</Text>
-      </View>
-    </>
-  );
+const source = {
+  html: `
+<p style='text-align:center;'>
+  Hello World!
+</p>`,
+};
+
+export default function App() {
+  const { width } = useWindowDimensions();
+  return <RenderHtml contentWidth={width} source={source} />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    alignContent: "center",
-  },
-});

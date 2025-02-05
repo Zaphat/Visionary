@@ -10,8 +10,15 @@ export default function ScreenLayout() {
       <Stack.Screen name="settings" options={createSettings("Settings")} />
       <Stack.Screen name="history" options={createSettings("History")} />
       <Stack.Screen name="storage" options={createSettings("Storage")} />
-      <Stack.Screen name="camera" options={{ headerShown: false }} />
-      <Stack.Screen name="gallery" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="camera"
+        options={{
+          headerTitle: "",
+        }}
+      />
+      <Stack.Screen name="gallery" options={
+        createSettings("Select Image")
+      } />
     </Stack>
   );
 }
