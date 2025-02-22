@@ -1,22 +1,11 @@
 import { StyleSheet, TouchableOpacity } from "react-native";
-import React from "react";
+import React, { useState } from "react";
 import { Colors } from "../constants/Colors";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { router } from "expo-router";
-
-export function GalleryButton() {
-  return (
-    <TouchableOpacity
-      style={styles.content}
-      onPress={() => {
-        router.push("/gallery");
-      }}
-    >
-      <AntDesign name="picture" size={32} color="black" />
-    </TouchableOpacity>
-  );
-}
+import * as ImagePicker from "expo-image-picker";
+export {GalleryButton} from "./GalleryButton";
 
 export function CameraButton() {
   return (

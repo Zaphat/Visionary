@@ -8,13 +8,27 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import React from "react";
 import * as Sharing from "expo-sharing";
 import QRCode from "react-native-qrcode-svg";
-import { useEffect } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Textarea } from "@/~/components/ui/textarea";
+import ViewShot, { captureRef } from "react-native-view-shot";
 
 export default function newQR() {
+  let viewShotRef = React.useRef(null);
   const [value, setValue] = React.useState<string>("");
   const { width, height } = useWindowDimensions();
+
+  const onQRShare = async () => {
+    try {
+      const uri = await captureRef(viewShotRef, {
+        format: "png",
+        quality: 1,
+      });
+      await Sharing.shareAsync(uri);
+    } catch (error) {
+      alert(error);
+    }
+  };
+
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
@@ -26,10 +40,21 @@ export default function newQR() {
           numberOfLines={4}
           multiline={true}
         />
-        <QRCode
-          value={value.length < 1 ? "Visionary" : value}
-          size={width * 0.6}
-        />
+        <ViewShot ref={viewShotRef} options={{ format: "png", quality: 1 }}>
+          <View
+            style={{
+              ...styles.qr,
+              backgroundColor: "#fff",
+              width: width * 0.65,
+              height: width * 0.65,
+            }}
+          >
+            <QRCode
+              value={value.length < 1 ? "Visionary" : value}
+              size={width * 0.6}
+            />
+          </View>
+        </ViewShot>
 
         <View style={{ flexDirection: "row", gap: 10 }}>
           <TouchableOpacity
@@ -48,12 +73,7 @@ export default function newQR() {
           >
             <MaterialIcons name="save" size={32} color="black" />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={async () => {
-              alert("Sharing QR Code\n Implement later");
-            }}
-          >
+          <TouchableOpacity style={styles.button} onPress={onQRShare}>
             <MaterialIcons name="share" size={32} color="black" />
           </TouchableOpacity>
         </View>

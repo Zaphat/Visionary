@@ -13,3 +13,4 @@ export default function App() {
   const { width } = useWindowDimensions();
   return <RenderHtml contentWidth={width} source={source} />;
 }
+

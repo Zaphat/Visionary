@@ -13,12 +13,12 @@ export default function ScreenLayout() {
       <Stack.Screen
         name="camera"
         options={{
-          headerTitle: "",
+          headerShown: false,
         }}
       />
-      <Stack.Screen name="gallery" options={
-        createSettings("Select Image")
-      } />
+      {__DEV__ && (
+        <Stack.Screen name="test-feature" options={createSettings("Dev")} />
+      )}
     </Stack>
   );
 }
