@@ -1,17 +1,12 @@
-import { StyleSheet, View, Text, TouchableOpacity } from "react-native";
+import { StyleSheet, View, TouchableOpacity } from "react-native";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import {
   CameraButton,
   GalleryButton,
   CreateQRButton,
 } from "@/components/Buttons";
-import React, {
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-  useEffect,
-} from "react";
+import ScannedItem from "@/components/ScannedItem";
 import RecentScan from "@/components/RecentScan";
 import AccessWidget from "@/components/AccessWidget";
 import {
@@ -19,16 +14,31 @@ import {
   BottomSheetModalProvider,
   BottomSheetBackdrop,
   BottomSheetScrollView,
+  BottomSheetScrollViewMethods,
 } from "@gorhom/bottom-sheet";
+import {
+  createNotifications,
+  useNotificationController,
+} from "react-native-notificated";
 import * as ImagePicker from "expo-image-picker";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ScanQRFromImage } from "@/utils/scanImage";
+import { Barcode } from "@react-native-ml-kit/barcode-scanning";
+
+const { useNotifications, NotificationsProvider } = createNotifications({
+  isNotch: true,
+});
 
 export default function Home() {
   // Bottom sheet
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const bottomSheetScrollViewRef = useRef<BottomSheetScrollViewMethods>(null);
   const snapPoints = useMemo(() => ["30%", "60%", "90%"], []);
+  const [image, setImage] = useState<string | null>(null);
+  const [scanResult, setScanResult] = useState<Barcode[]>([]);
+
+  const { notify } = useNotifications();
 
   const displayImageScanResult = useCallback(() => {
     bottomSheetModalRef.current?.present();
@@ -38,7 +48,7 @@ export default function Home() {
     (props: any) => (
       <BottomSheetBackdrop
         {...props}
-        pressBehavior={"close"}
+        pressBehavior="close"
         appearsOnIndex={1}
         animatedIndex={{
           value: 1,
@@ -48,98 +58,151 @@ export default function Home() {
     []
   );
 
-  // Image picker
-  const [image, setImage] = useState<string | null>(null);
   const pickImage = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsMultipleSelection: false,
-      allowsEditing: false,
-      quality: 1,
-    });
-    if (!result.canceled) {
-      setImage(result.assets[0].uri);
-      await ScanQRFromImage(image);
+    try {
+      let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsMultipleSelection: false,
+        allowsEditing: false,
+        quality: 1,
+      });
+
+      if (!result.canceled) {
+        const selectedUri = result.assets[0].uri;
+        setImage(selectedUri);
+
+        let scanResult = await ScanQRFromImage(selectedUri);
+        setScanResult(scanResult);
+        if (scanResult.length > 0) {
+          displayImageScanResult();
+        } else {
+          notify("error", {
+            params: {
+              description: "No QR code found in the image.",
+              title: "Error",
+            },
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Image picker error:", error);
     }
   };
 
+  const renderItem = useCallback(
+    (index: number, item: Barcode) => (
+      <ScannedItem key={index} id={index} item={item} />
+    ),
+    []
+  );
+
   return (
     <GestureHandlerRootView style={styles.container}>
-      <SafeAreaProvider>
-        <StatusBar style="auto" />
-        <SafeAreaView style={styles.container}>
-          <View style={styles.widgetGroup}>
-            <AccessWidget />
-          </View>
-          {__DEV__ && (
-            <TouchableOpacity
-              style={{ backgroundColor: "#fffeee", width: 70, height: 50 }}
-              onPress={pickImage}
-            />
-          )}
-          <View style={styles.recentScan}>
-            <RecentScan />
-          </View>
-          <View style={styles.accessButton}>
-            <GalleryButton onPress={displayImageScanResult} />
-            <CameraButton />
-            <CreateQRButton />
-          </View>
-        </SafeAreaView>
-      </SafeAreaProvider>
-      <BottomSheetModalProvider>
-        <BottomSheetModal
-          ref={bottomSheetModalRef}
-          index={1}
-          snapPoints={snapPoints}
-          backgroundStyle={{ borderRadius: 30 }}
-          enableDismissOnClose={true}
-          backdropComponent={renderBackdrop}
-          enableDynamicSizing={true}
-        >
-          <BottomSheetScrollView
-            contentContainerStyle={{
-              ...styles.bottomSheet,
-              backgroundColor: "white",
-              borderRadius: 30,
+      <NotificationsProvider>
+        <SafeAreaProvider>
+          <StatusBar style="auto" />
+          <SafeAreaView style={styles.container}>
+            <View style={styles.widgetGroup}>
+              <AccessWidget />
+            </View>
+            {__DEV__ && (
+              <TouchableOpacity
+                style={{ backgroundColor: "#fffeee", width: 70, height: 50 }}
+                onPress={() =>
+                  notify("error", {
+                    params: {
+                      description: "This is where the toast text goes. ",
+                      title: "Error",
+                    },
+                  })
+                }
+              />
+            )}
+            <View style={styles.recentScan}>
+              <RecentScan />
+            </View>
+            <View style={styles.accessButton}>
+              <GalleryButton onPress={pickImage} />
+              <CameraButton />
+              <CreateQRButton />
+            </View>
+          </SafeAreaView>
+        </SafeAreaProvider>
+        <BottomSheetModalProvider>
+          <BottomSheetModal
+            ref={bottomSheetModalRef}
+            index={0}
+            snapPoints={snapPoints}
+            backgroundStyle={{ borderRadius: 30 }}
+            enableDismissOnClose={true}
+            backdropComponent={renderBackdrop}
+            enableDynamicSizing={true}
+            onDismiss={() => {
+              setImage(null);
+              setScanResult([]);
             }}
           >
-            <Text>Hello Bitch</Text>
-            <Text> Hasta la vista</Text>
-          </BottomSheetScrollView>
-        </BottomSheetModal>
-      </BottomSheetModalProvider>
+            <BottomSheetScrollView
+              contentContainerStyle={{
+                ...styles.bottomSheet,
+                backgroundColor: "white",
+                borderRadius: 30,
+                padding: 20,
+              }}
+              ref={bottomSheetScrollViewRef}
+            >
+              <View style={styles.scanResultContainer}>
+                {scanResult?.map((value, index) => renderItem(index, value))}
+              </View>
+            </BottomSheetScrollView>
+          </BottomSheetModal>
+        </BottomSheetModalProvider>
+      </NotificationsProvider>
     </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "space-evenly",
-    height: "100%",
-    flexWrap: "nowrap",
-    gap: 20,
+    flex: 1,
+    backgroundColor: "#fff",
   },
   widgetGroup: {
-    alignContent: "center",
+    flex: 2,
   },
   recentScan: {
-    visibility: "hidden",
-    height: "35%",
+    flex: 2,
   },
   accessButton: {
-    display: "flex",
+    flex: 1,
     flexDirection: "row",
-    justifyContent: "space-around",
-    gap: 20,
+    justifyContent: "space-evenly",
+    alignItems: "center",
   },
   bottomSheet: {
-    display: "flex",
-    flexDirection: "column",
+    flex: 1,
     alignItems: "center",
-    justifyContent: "space-evenly",
+  },
+  scanResultContainer: {
+    justifyContent: "center",
+    alignContent: "space-around",
+  },
+  resultText: {
+    display: "flex",
+    textAlign: "justify",
+    width: "auto",
+    height: "100%",
+  },
+  resultView: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#f0f8ff",
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 10,
+    gap: 10,
+    width: "95%",
+    height: "auto",
   },
 });
