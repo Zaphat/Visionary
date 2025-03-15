@@ -1,9 +1,10 @@
 import {
-  StyleSheet,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+	StyleSheet,
+	TouchableOpacity,
+	useWindowDimensions,
+	View,
 } from "react-native";
+import * as MediaLibrary from "expo-media-library";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import React from "react";
 import * as Sharing from "expo-sharing";
@@ -11,112 +12,177 @@ import QRCode from "react-native-qrcode-svg";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Textarea } from "@/~/components/ui/textarea";
 import ViewShot, { captureRef } from "react-native-view-shot";
+import * as Clipboard from "expo-clipboard";
+import { createNotifications } from "react-native-notificated";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+
+const { useNotifications, NotificationsProvider } = createNotifications({
+	isNotch: true,
+	notificationPosition: "top",
+});
 
 export default function newQR() {
-  let viewShotRef = React.useRef(null);
-  const [value, setValue] = React.useState<string>("");
-  const { width, height } = useWindowDimensions();
+	let viewShotRef = React.useRef(null);
+	const [notificationId, setNotificationId] = React.useState<string>(null);
+	const [value, setValue] = React.useState<string>("");
+	const { width, height } = useWindowDimensions();
+	const { notify, remove } = useNotifications();
 
-  const onQRShare = async () => {
-    try {
-      const uri = await captureRef(viewShotRef, {
-        format: "png",
-        quality: 1,
-      });
-      await Sharing.shareAsync(uri);
-    } catch (error) {
-      alert(error);
-    }
-  };
+	const onQRShare = React.useCallback(async () => {
+		try {
+			const uri = await captureRef(viewShotRef, {
+				format: "png",
+				quality: 1,
+			});
+			await Sharing.shareAsync(uri);
+		} catch (error) {
+			displayError(error);
+		}
+	}, [viewShotRef]);
 
-  return (
-    <SafeAreaProvider>
-      <SafeAreaView style={styles.container}>
-        <Textarea
-          style={styles.input}
-          placeholder="Type something..."
-          value={value}
-          onChangeText={setValue}
-          numberOfLines={4}
-          multiline={true}
-        />
-        <ViewShot ref={viewShotRef} options={{ format: "png", quality: 1 }}>
-          <View
-            style={{
-              ...styles.qr,
-              backgroundColor: "#fff",
-              width: width * 0.65,
-              height: width * 0.65,
-            }}
-          >
-            <QRCode
-              value={value.length < 1 ? "Visionary" : value}
-              size={width * 0.6}
-            />
-          </View>
-        </ViewShot>
+	const onQRSave = React.useCallback(async () => {
+		try {
+			const uri = await captureRef(viewShotRef, {
+				format: "png",
+				quality: 1,
+			});
+			MediaLibrary.saveToLibraryAsync(uri)
+				.then(() => {
+					remove(notificationId);
+					setNotificationId(
+						notify("success", {
+							params: {
+								title: "Image saved to gallery!",
+							},
+						}).id
+					);
+				})
+				.catch((error) => {
+					displayError(error);
+				});
+		} catch (error) {
+			displayError(error);
+		}
+	}, [viewShotRef]);
 
-        <View style={{ flexDirection: "row", gap: 10 }}>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={async () => {
-              alert("Saving QR Code to Gallery\n Implement later");
-            }}
-          >
-            <MaterialIcons name="save-alt" size={32} color="black" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={async () => {
-              alert("Save QR Code\n Implement later");
-            }}
-          >
-            <MaterialIcons name="save" size={32} color="black" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress={onQRShare}>
-            <MaterialIcons name="share" size={32} color="black" />
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    </SafeAreaProvider>
-  );
+	const onQRCopy = React.useCallback(async () => {
+		try {
+			const image = await captureRef(viewShotRef, {
+				format: "png",
+				quality: 1,
+				result: "base64",
+			});
+			Clipboard.setImageAsync(image)
+				.then(() => {
+					remove(notificationId);
+					setNotificationId(
+						notify("success", {
+							params: {
+								title: "Copied to clipboard!",
+							},
+						}).id
+					);
+				})
+				.catch((error) => {
+					displayError(error);
+				});
+		} catch (error) {
+			displayError(error);
+		}
+	}, [viewShotRef]);
+
+	const displayError = (error: any) => {
+		remove(notificationId);
+		setNotificationId(
+			notify("error", {
+				params: {
+					description: error,
+					title: "Error",
+				},
+			}).id
+		);
+	};
+
+	return (
+		<GestureHandlerRootView>
+			<SafeAreaProvider>
+				<NotificationsProvider />
+				<SafeAreaView style={styles.container}>
+					<Textarea
+						style={styles.input}
+						placeholder="Type something..."
+						value={value}
+						onChangeText={setValue}
+						numberOfLines={4}
+						multiline={true}
+					/>
+					<ViewShot ref={viewShotRef} options={{ format: "png", quality: 1 }}>
+						<View
+							style={{
+								...styles.qr,
+								backgroundColor: "#fff",
+								width: width * 0.65,
+								height: height * 0.35,
+							}}>
+							<QRCode
+								value={value.length < 1 ? "Visionary" : value}
+								size={width * 0.6}
+							/>
+						</View>
+					</ViewShot>
+
+					<View style={{ flexDirection: "row", gap: 10 }}>
+						<TouchableOpacity style={styles.button} onPress={onQRSave}>
+							<MaterialIcons name="save-alt" size={32} color="black" />
+						</TouchableOpacity>
+						<TouchableOpacity style={styles.button} onPress={onQRCopy}>
+							<MaterialIcons name="save" size={32} color="black" />
+						</TouchableOpacity>
+						<TouchableOpacity style={styles.button} onPress={onQRShare}>
+							<MaterialIcons name="share" size={32} color="black" />
+						</TouchableOpacity>
+					</View>
+				</SafeAreaView>
+			</SafeAreaProvider>
+		</GestureHandlerRootView>
+	);
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    display: "flex",
-    justifyContent: "flex-start",
-    alignContent: "space-between",
-    alignItems: "center",
-    gap: 20,
-    paddingTop: 0,
-  },
-  qr: {
-    alignContent: "center",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  button: {
-    backgroundColor: "#007AFF",
-    padding: 10,
-    borderRadius: 10,
-    marginTop: 20,
-    width: 65,
-    height: 65,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  input: {
-    marginTop: 20,
-    width: "80%",
-    height: "30%",
-    borderWidth: 1,
-    borderColor: "#000",
-    borderRadius: 10,
-    padding: 20,
-    paddingLeft: 10,
-    textAlignVertical: "top",
-  },
+	container: {
+		flex: 1,
+		display: "flex",
+		justifyContent: "flex-start",
+		alignContent: "space-between",
+		alignItems: "center",
+		gap: 20,
+		paddingTop: 0,
+	},
+	qr: {
+		alignContent: "center",
+		justifyContent: "center",
+		alignItems: "center",
+	},
+	button: {
+		backgroundColor: "#007AFF",
+		padding: 10,
+		borderRadius: 10,
+		marginTop: 20,
+		width: 65,
+		height: 65,
+		display: "flex",
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	input: {
+		marginTop: 20,
+		width: "80%",
+		height: "30%",
+		borderWidth: 1,
+		borderColor: "#000",
+		borderRadius: 10,
+		padding: 20,
+		paddingLeft: 10,
+		textAlignVertical: "top",
+	},
 });

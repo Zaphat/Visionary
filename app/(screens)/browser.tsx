@@ -3,14 +3,13 @@ import { useWindowDimensions } from "react-native";
 import RenderHtml from "@builder.io/react-native-render-html";
 
 const source = {
-  html: `
+	html: `
 <p style='text-align:center;'>
   Hello World!
 </p>`,
 };
 
 export default function App() {
-  const { width } = useWindowDimensions();
-  return <RenderHtml contentWidth={width} source={source} />;
+	const { width } = useWindowDimensions();
+	return <RenderHtml contentWidth={width} source={source} />;
 }
-
