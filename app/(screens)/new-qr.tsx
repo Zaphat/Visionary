@@ -1,34 +1,125 @@
 import {
 	StyleSheet,
-	TouchableOpacity,
 	useWindowDimensions,
 	View,
+	Text,
+	TouchableOpacity,
 } from "react-native";
 import * as MediaLibrary from "expo-media-library";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import React from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import * as Sharing from "expo-sharing";
-import QRCode from "react-native-qrcode-svg";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Textarea } from "@/~/components/ui/textarea";
 import ViewShot, { captureRef } from "react-native-view-shot";
 import * as Clipboard from "expo-clipboard";
 import { createNotifications } from "react-native-notificated";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import {
+	QrCodeSvg,
+	plainRenderer,
+	triangleRenderer,
+	circleRenderer,
+	renderCircle,
+	type RenderParams,
+	renderSquare,
+	type CustomRenderer,
+	Kind,
+} from "react-native-qr-svg";
 
 const { useNotifications, NotificationsProvider } = createNotifications({
 	isNotch: true,
 	notificationPosition: "top",
 });
 
-export default function newQR() {
-	let viewShotRef = React.useRef(null);
-	const [notificationId, setNotificationId] = React.useState<string>(null);
-	const [value, setValue] = React.useState<string>("");
+const customRenderer: CustomRenderer = {
+	render: {
+		[Kind.Circle]: (params: RenderParams) => {
+			if (params.isSquareElem) {
+				return renderSquare(params.corners);
+			}
+			return renderCircle(params.corners.center, params.cellSize);
+		},
+		[Kind.Element]: (params: RenderParams) => {
+			if (params.isSquareElem) {
+				return renderSquare(params.corners);
+			}
+			return renderCircle(params.corners.center, params.cellSize);
+		},
+	},
+};
+const QR_STYLES = [
+	{
+		name: "Default",
+		props: {},
+	},
+	{
+		name: "Content Cells",
+		props: {
+			contentCells: 5,
+		},
+	},
+	{
+		name: "Gradient",
+		props: {
+			gradientColors: ["#0800ff", "#ff0000"],
+		},
+	},
+	{
+		name: "Inverted",
+		props: {
+			contentCells: 5,
+			dotColor: "#ffffff",
+			backgroundColor: "#000000",
+		},
+	},
+	{
+		name: "Plain",
+		props: {
+			renderer: { ...plainRenderer, options: { padding: 0 } },
+		},
+	},
+	{
+		name: "Triangle",
+		props: {
+			renderer: { ...triangleRenderer, options: { padding: 0 } },
+		},
+	},
+	{
+		name: "Circle",
+		props: {
+			renderer: { ...circleRenderer, options: { padding: 0 } },
+		},
+	},
+	{
+		name: "Custom",
+		props: {
+			renderer: customRenderer,
+		},
+	},
+];
+
+export default function NewQR() {
+	const viewShotRef = useRef<any>(null);
+	const [notificationId, setNotificationId] = useState<string | null>(null);
+	const [value, setValue] = useState<string>("");
+	const [styleIndex, setStyleIndex] = useState<number>(0);
 	const { width, height } = useWindowDimensions();
 	const { notify, remove } = useNotifications();
 
-	const onQRShare = React.useCallback(async () => {
+	// Use useMemo to create the current QR style based on styleIndex
+	const currentStyle = useMemo(() => QR_STYLES[styleIndex], [styleIndex]);
+
+	const nextStyleIndex = useMemo(
+		() => (styleIndex + 1) % QR_STYLES.length,
+		[styleIndex]
+	);
+
+	const onQRStyleChange = useCallback(() => {
+		setStyleIndex(nextStyleIndex);
+	}, [nextStyleIndex]);
+
+	const onQRShare = useCallback(async () => {
 		try {
 			const uri = await captureRef(viewShotRef, {
 				format: "png",
@@ -38,9 +129,9 @@ export default function newQR() {
 		} catch (error) {
 			displayError(error);
 		}
-	}, [viewShotRef]);
+	}, [viewShotRef, notificationId, notify, remove]);
 
-	const onQRSave = React.useCallback(async () => {
+	const onQRSave = useCallback(async () => {
 		try {
 			const uri = await captureRef(viewShotRef, {
 				format: "png",
@@ -63,9 +154,9 @@ export default function newQR() {
 		} catch (error) {
 			displayError(error);
 		}
-	}, [viewShotRef]);
+	}, [viewShotRef, notificationId, notify, remove]);
 
-	const onQRCopy = React.useCallback(async () => {
+	const onQRCopy = useCallback(async () => {
 		try {
 			const image = await captureRef(viewShotRef, {
 				format: "png",
@@ -89,22 +180,71 @@ export default function newQR() {
 		} catch (error) {
 			displayError(error);
 		}
-	}, [viewShotRef]);
+	}, [viewShotRef, notificationId, notify, remove]);
 
-	const displayError = (error: any) => {
-		remove(notificationId);
-		setNotificationId(
-			notify("error", {
-				params: {
-					description: error,
-					title: "Error",
-				},
-			}).id
-		);
-	};
+	const displayError = useCallback(
+		(error: any) => {
+			if (notificationId) {
+				remove(notificationId);
+			}
+
+			setNotificationId(
+				notify("error", {
+					params: {
+						description: String(error),
+						title: "Error",
+					},
+				}).id
+			);
+		},
+		[notificationId, notify, remove]
+	);
+
+const renderQRCode = useMemo(() => {
+	const qrValue = value.length < 1 ? "Visionary" : value;
+	const qrSize = width * 0.6;
 
 	return (
-		<GestureHandlerRootView>
+		<TouchableOpacity activeOpacity={1} onPress={onQRStyleChange}>
+			<ViewShot ref={viewShotRef} options={{ format: "png", quality: 1 }}>
+				<View
+					style={{
+						...styles.qr,
+						backgroundColor: "#fff",
+						width: width * 0.65,
+						height: height * 0.35,
+					}}>
+					<QrCodeSvg
+						value={qrValue}
+						frameSize={qrSize}
+						style={{ width: qrSize, height: qrSize }}
+						{...currentStyle.props}
+					/>
+				</View>
+			</ViewShot>
+		</TouchableOpacity>
+	);
+}, [value, width, height, currentStyle, onQRStyleChange, viewShotRef]);
+
+	const actionButtons = useMemo(
+		() => (
+			<View style={styles.buttonContainer}>
+				<TouchableOpacity style={styles.button} onPress={onQRSave}>
+					<MaterialIcons name="save-alt" size={32} color="white" />
+				</TouchableOpacity>
+				<TouchableOpacity style={styles.button} onPress={onQRCopy}>
+					<MaterialIcons name="save" size={32} color="white" />
+				</TouchableOpacity>
+				<TouchableOpacity style={styles.button} onPress={onQRShare}>
+					<MaterialIcons name="share" size={32} color="white" />
+				</TouchableOpacity>
+			</View>
+		),
+		[onQRSave, onQRCopy, onQRShare]
+	);
+
+	return (
+		<GestureHandlerRootView style={styles.root}>
 			<SafeAreaProvider>
 				<NotificationsProvider />
 				<SafeAreaView style={styles.container}>
@@ -116,32 +256,12 @@ export default function newQR() {
 						numberOfLines={4}
 						multiline={true}
 					/>
-					<ViewShot ref={viewShotRef} options={{ format: "png", quality: 1 }}>
-						<View
-							style={{
-								...styles.qr,
-								backgroundColor: "#fff",
-								width: width * 0.65,
-								height: height * 0.35,
-							}}>
-							<QRCode
-								value={value.length < 1 ? "Visionary" : value}
-								size={width * 0.6}
-							/>
-						</View>
-					</ViewShot>
 
-					<View style={{ flexDirection: "row", gap: 10 }}>
-						<TouchableOpacity style={styles.button} onPress={onQRSave}>
-							<MaterialIcons name="save-alt" size={32} color="black" />
-						</TouchableOpacity>
-						<TouchableOpacity style={styles.button} onPress={onQRCopy}>
-							<MaterialIcons name="save" size={32} color="black" />
-						</TouchableOpacity>
-						<TouchableOpacity style={styles.button} onPress={onQRShare}>
-							<MaterialIcons name="share" size={32} color="black" />
-						</TouchableOpacity>
-					</View>
+					{renderQRCode}
+
+					<Text style={styles.hint}>Tap QR to change style</Text>
+
+					{actionButtons}
 				</SafeAreaView>
 			</SafeAreaProvider>
 		</GestureHandlerRootView>
@@ -149,19 +269,22 @@ export default function newQR() {
 }
 
 const styles = StyleSheet.create({
+	root: {
+		flex: 1,
+	},
 	container: {
 		flex: 1,
-		display: "flex",
 		justifyContent: "flex-start",
-		alignContent: "space-between",
 		alignItems: "center",
 		gap: 20,
-		paddingTop: 0,
 	},
 	qr: {
-		alignContent: "center",
-		justifyContent: "center",
 		alignItems: "center",
+		justifyContent: "center",
+	},
+	buttonContainer: {
+		flexDirection: "row",
+		gap: 10,
 	},
 	button: {
 		backgroundColor: "#007AFF",
@@ -170,7 +293,6 @@ const styles = StyleSheet.create({
 		marginTop: 20,
 		width: 65,
 		height: 65,
-		display: "flex",
 		alignItems: "center",
 		justifyContent: "center",
 	},
@@ -184,5 +306,8 @@ const styles = StyleSheet.create({
 		padding: 20,
 		paddingLeft: 10,
 		textAlignVertical: "top",
+	},
+	hint: {
+		color: "#898989",
 	},
 });

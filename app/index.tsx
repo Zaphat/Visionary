@@ -22,6 +22,7 @@ import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ScanQRFromImage } from "@/utils/scanImage";
 import { Barcode } from "@react-native-ml-kit/barcode-scanning";
+import { router } from "expo-router";
 
 const { useNotifications, NotificationsProvider } = createNotifications({
 	isNotch: true,
@@ -106,14 +107,9 @@ export default function Home() {
 					{__DEV__ && (
 						<TouchableOpacity
 							style={{ backgroundColor: "#fffeee", width: 70, height: 50 }}
-							onPress={() =>
-								notify("error", {
-									params: {
-										description: "This is where the toast text goes. ",
-										title: "Error",
-									},
-								})
-							}
+							onPress={() => {
+								router.push("/(screens)/test-feature");
+							}}
 						/>
 					)}
 					<View style={styles.recentScan}>
