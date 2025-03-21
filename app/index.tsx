@@ -57,7 +57,7 @@ export default function Home() {
 		[]
 	);
 
-	const pickImage = async () => {
+	const pickAndScanImage = async () => {
 		try {
 			let result = await ImagePicker.launchImageLibraryAsync({
 				mediaTypes: ["images"],
@@ -108,7 +108,7 @@ export default function Home() {
 						<TouchableOpacity
 							style={{ backgroundColor: "#fffeee", width: 70, height: 50 }}
 							onPress={() => {
-								router.push("/(screens)/test-feature");
+								router.push("/test-feature");
 							}}
 						/>
 					)}
@@ -116,7 +116,7 @@ export default function Home() {
 						<RecentScan />
 					</View>
 					<View style={styles.accessButton}>
-						<GalleryButton onPress={pickImage} />
+						<GalleryButton onPress={pickAndScanImage} />
 						<CameraButton />
 						<CreateQRButton />
 					</View>
@@ -196,4 +196,7 @@ const styles = StyleSheet.create({
 		width: "95%",
 		height: "auto",
 	},
+	grayScale:{
+		filter: "grayscale(100%)",
+	}
 });
